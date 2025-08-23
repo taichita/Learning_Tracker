@@ -240,44 +240,80 @@ export function NewItemDialog({ isOpen, onClose, initialKind = 'book' }: NewItem
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-4 lg:p-6 space-y-4">
-          {/* 重要: メモ欄を最上位に配置 */}
-          <div className="space-y-4 p-4 bg-card/50 rounded-lg border-2 border-cyan-500/30">
-            <div className="flex items-center gap-2 mb-4">
-              <span className="text-2xl">✍️</span>
-              <h3 className="text-lg font-bold text-cyan-300">メモ欄（メイン）</h3>
-              <span className="text-xs text-gray-500">作成後に編集可能</span>
-            </div>
-            
-            {/* Business Memo */}
-            <ExpandableMemoEditor
-              type="business"
-              items={businessMemos}
-              onItemsChange={setBusinessMemos}
-              placeholder="• Enterで箇条書き&#10;• Shift+Enterで改行&#10;• 企画・ビジネスアイデア"
-              title="💡 企画に生かせそうな内容"
-            />
-
-            {/* Life Memo */}
-            <ExpandableMemoEditor
-              type="life"
-              items={lifeMemos}
-              onItemsChange={setLifeMemos}
-              placeholder="• Enterで箇条書き&#10;• Shift+Enterで改行&#10;• 人生の教訓・気づき"
-              title="🌟 人生において生かせそうなエッセンス"
-            />
-          </div>
-
-          {/* コンパクトな基本情報セクション */}
+          {/* 基本情報 - 最上位 */}
           <div className="space-y-3 p-3 bg-background/50 rounded-lg border border-border">
-            <h4 className="text-sm font-medium text-gray-400 flex items-center gap-2">
-              <span>📝</span> 基本情報（コンパクト）
-            </h4>
+            {/* タイトル、作者、評価を見やすく */}
+            <div className="grid grid-cols-12 gap-3">
+              <div className="col-span-1">
+                <label className="block text-xs font-medium mb-1">種別</label>
+                <div className="flex gap-1">
+                  {kindOptions.map((option) => {
+                    const Icon = option.icon
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => {
+                          setFormData(prev => ({ ...prev, kind: option.value as ContentKind }))
+                        }}
+                        className={`p-1 border rounded transition-all ${
+                          formData.kind === option.value
+                            ? 'border-accent-purple bg-accent-purple bg-opacity-20'
+                            : 'border-border hover:border-accent-purple'
+                        }`}
+                        title={option.label}
+                      >
+                        <Icon size={12} className={option.color} />
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
 
-            {/* URL - First */}
+              <div className="col-span-6">
+                <label className="block text-sm font-medium mb-1">
+                  タイトル <span className="text-red-400">*</span>
+                </label>
+                <input
+                  ref={titleInputRef}
+                  type="text"
+                  value={formData.title}
+                  onChange={handleTitleChange}
+                  className="w-full px-3 py-2 bg-background border border-border rounded focus:ring-1 focus:ring-cyan-400 focus:border-transparent outline-none transition-all"
+                  placeholder="タイトル"
+                  required
+                />
+              </div>
+
+              <div className="col-span-3">
+                <label className="block text-sm font-medium mb-1">作者</label>
+                <input
+                  type="text"
+                  value={formData.creators}
+                  onChange={(e) => setFormData(prev => ({ ...prev, creators: e.target.value }))}
+                  className="w-full px-3 py-2 bg-background border border-border rounded focus:ring-1 focus:ring-accent-purple focus:border-transparent outline-none transition-all"
+                  placeholder="作者名"
+                />
+              </div>
+
+              <div className="col-span-2">
+                <label className="block text-sm font-medium mb-1">評価</label>
+                <select
+                  value={formData.rating}
+                  onChange={(e) => setFormData(prev => ({ ...prev, rating: e.target.value }))}
+                  className="w-full px-2 py-2 bg-background border border-border rounded focus:ring-1 focus:ring-accent-purple focus:border-transparent outline-none transition-all"
+                >
+                  <option value="">-</option>
+                  {Array.from({ length: 10 }, (_, i) => i + 1).map(num => (
+                    <option key={num} value={num}>{num}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* URL */}
             <div>
-              <label className="block text-xs font-medium mb-1">
-                URL <span className="text-cyan-300 text-xs">（自動取得）</span>
-              </label>
+              <label className="block text-sm font-medium mb-1">URL</label>
               <div className="flex gap-2">
                 <input
                   type="url"
@@ -288,96 +324,60 @@ export function NewItemDialog({ isOpen, onClose, initialKind = 'book' }: NewItem
                       extractTitleFromUrl(e.target.value)
                     }
                   }}
-                  className="flex-1 px-2 py-1 bg-background border border-border rounded focus:ring-1 focus:ring-cyan-400 focus:border-transparent outline-none transition-all text-sm"
+                  className="flex-1 px-3 py-2 bg-background border border-border rounded focus:ring-1 focus:ring-cyan-400 focus:border-transparent outline-none transition-all"
                   placeholder="https://..."
                 />
                 <button
                   type="button"
                   onClick={() => extractTitleFromUrl(formData.url)}
                   disabled={!formData.url || !formData.url.startsWith('http') || isExtractingTitle}
-                  className="px-2 py-1 bg-cyan-900 hover:bg-cyan-800 disabled:bg-gray-700 disabled:cursor-not-allowed text-cyan-100 rounded transition-colors text-xs flex items-center gap-1"
+                  className="px-3 py-2 bg-cyan-900 hover:bg-cyan-800 disabled:bg-gray-700 disabled:cursor-not-allowed text-cyan-100 rounded transition-colors text-sm"
                   title="URLからタイトルを自動取得"
                 >
                   {isExtractingTitle ? (
-                    <div className="w-3 h-3 border border-cyan-300 border-t-transparent rounded-full animate-spin"></div>
+                    <div className="w-4 h-4 border border-cyan-300 border-t-transparent rounded-full animate-spin"></div>
                   ) : (
                     '取得'
                   )}
                 </button>
               </div>
             </div>
+          </div>
 
-            {/* Kind Selection - Ultra Compact */}
-            <div className="flex items-center gap-3">
-              <label className="text-xs font-medium">種別:</label>
-              <div className="flex gap-1">
-                {kindOptions.map((option) => {
-                  const Icon = option.icon
-                  return (
-                    <button
-                      key={option.value}
-                      type="button"
-                      onClick={() => {
-                        setFormData(prev => ({ ...prev, kind: option.value as ContentKind }))
-                      }}
-                      className={`p-2 border rounded transition-all ${
-                        formData.kind === option.value
-                          ? 'border-accent-purple bg-accent-purple bg-opacity-20'
-                          : 'border-border hover:border-accent-purple'
-                      }`}
-                      title={option.label}
-                    >
-                      <Icon size={16} className={option.color} />
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
+          {/* ひと言まとめ */}
+          <div>
+            <label className="block text-sm font-medium mb-2">ひと言まとめ</label>
+            <input
+              type="text"
+              value={formData.oneLiner}
+              onChange={(e) => setFormData(prev => ({ ...prev, oneLiner: e.target.value }))}
+              className="w-full px-3 py-2 bg-background border border-border rounded focus:ring-1 focus:ring-accent-purple focus:border-transparent outline-none transition-all"
+              placeholder="学んだことを一言で"
+              maxLength={120}
+            />
+          </div>
 
-            {/* 超コンパクト基本情報 */}
-            <div className="grid grid-cols-12 gap-2 text-xs">
-              <div className="col-span-6">
-                <label className="block text-xs font-medium mb-1">
-                  タイトル <span className="text-red-400">*</span>
-                </label>
-                <input
-                  ref={titleInputRef}
-                  type="text"
-                  value={formData.title}
-                  onChange={handleTitleChange}
-                  className="w-full px-2 py-1 bg-background border border-border rounded focus:ring-1 focus:ring-cyan-400 focus:border-transparent outline-none transition-all text-xs"
-                  placeholder="タイトル"
-                  required
-                />
-              </div>
+          {/* メモ欄 */}
+          <div className="space-y-4">
+            <ExpandableMemoEditor
+              type="business"
+              items={businessMemos}
+              onItemsChange={setBusinessMemos}
+              placeholder="• Enterで箇条書き&#10;• Shift+Enterで改行"
+              title="企画メモ"
+            />
 
-              <div className="col-span-4">
-                <label className="block text-xs font-medium mb-1">作者</label>
-                <input
-                  type="text"
-                  value={formData.creators}
-                  onChange={(e) => setFormData(prev => ({ ...prev, creators: e.target.value }))}
-                  className="w-full px-2 py-1 bg-background border border-border rounded focus:ring-1 focus:ring-accent-purple focus:border-transparent outline-none transition-all text-xs"
-                  placeholder="作者名"
-                />
-              </div>
+            <ExpandableMemoEditor
+              type="life"
+              items={lifeMemos}
+              onItemsChange={setLifeMemos}
+              placeholder="• Enterで箇条書き&#10;• Shift+Enterで改行"
+              title="感想"
+            />
+          </div>
 
-              <div className="col-span-2">
-                <label className="block text-xs font-medium mb-1">評価</label>
-                <select
-                  value={formData.rating}
-                  onChange={(e) => setFormData(prev => ({ ...prev, rating: e.target.value }))}
-                  className="w-full px-1 py-1 bg-background border border-border rounded focus:ring-1 focus:ring-accent-purple focus:border-transparent outline-none transition-all text-xs"
-                >
-                  <option value="">-</option>
-                  {Array.from({ length: 10 }, (_, i) => i + 1).map(num => (
-                    <option key={num} value={num}>{num}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            {/* 日付、ステータス、タグを1行に */}
+          {/* その他情報 */}
+          <div className="space-y-3 p-3 bg-background/30 rounded-lg border border-border/50">
             <div className="grid grid-cols-12 gap-2 text-xs">
               <div className="col-span-3">
                 <label className="block text-xs font-medium mb-1">完了日</label>
@@ -420,27 +420,14 @@ export function NewItemDialog({ isOpen, onClose, initialKind = 'book' }: NewItem
               </div>
 
               <div className="col-span-5">
-                <label className="block text-xs font-medium mb-1">一言</label>
-                <input
-                  type="text"
-                  value={formData.oneLiner}
-                  onChange={(e) => setFormData(prev => ({ ...prev, oneLiner: e.target.value }))}
+                <label className="block text-xs font-medium mb-1">タグ</label>
+                <TagInput
+                  value={formData.tags}
+                  onChange={(value) => setFormData(prev => ({ ...prev, tags: value }))}
                   className="w-full px-2 py-1 bg-background border border-border rounded focus:ring-1 focus:ring-accent-purple focus:border-transparent outline-none transition-all text-xs"
-                  placeholder="一言まとめ"
-                  maxLength={50}
+                  placeholder="カンマ区切り"
                 />
               </div>
-            </div>
-
-            {/* Tags */}
-            <div>
-              <label className="block text-xs font-medium mb-1">タグ</label>
-              <TagInput
-                value={formData.tags}
-                onChange={(value) => setFormData(prev => ({ ...prev, tags: value }))}
-                className="w-full px-2 py-1 bg-background border border-border rounded focus:ring-1 focus:ring-accent-purple focus:border-transparent outline-none transition-all text-xs"
-                placeholder="カンマ区切り（例：経済学, ビジネス）"
-              />
             </div>
           </div>
 

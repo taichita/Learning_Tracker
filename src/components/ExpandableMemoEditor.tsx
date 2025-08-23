@@ -137,7 +137,7 @@ export function ExpandableMemoEditor({
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <label className="block text-sm font-medium">{title}</label>
-        <span className="text-xs text-gray-500">{items.length}個</span>
+        <span className="text-xs text-gray-500">{items.length}</span>
       </div>
 
       {/* Existing items */}
@@ -247,7 +247,7 @@ export function ExpandableMemoEditor({
           className="w-full p-3 border-2 border-dashed border-border hover:border-cyan-500 hover:bg-cyan-500/5 rounded-lg transition-colors text-sm text-gray-400 hover:text-cyan-300 flex items-center justify-center gap-2"
         >
           <Plus size={16} />
-          新しい{type === 'business' ? '企画メモ' : '人生メモ'}を追加
+          追加
         </button>
       )}
     </div>
