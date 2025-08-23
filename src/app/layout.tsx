@@ -5,6 +5,15 @@ export const metadata: Metadata = {
   title: 'Learning Tracker - 読書・動画学習管理',
   description: '読書や動画学習を効率的に管理するアプリケーション',
   manifest: '/manifest.json',
+  icons: {
+    icon: [
+      { url: '/favicon.ico' },
+      { url: '/icon.svg', type: 'image/svg+xml' }
+    ],
+    apple: [
+      { url: '/icon-192x192.png', sizes: '192x192' }
+    ]
+  }
 }
 
 export const viewport = {

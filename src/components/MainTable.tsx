@@ -1,10 +1,11 @@
 'use client'
 
-import { ContentKind, ContentStatus } from '@/types'
+import { ContentKind, ContentStatus, ContentItem } from '@/types'
 import { Book, Video, FileText, ExternalLink, Star, Plus, Trash2, Menu } from 'lucide-react'
 import { useAppStore } from '@/store/useAppStore'
 import { useState } from 'react'
 import { NewItemDialog } from './NewItemDialog'
+import { EditItemDialog } from './EditItemDialog'
 
 interface MainTableProps {
   selectedMonth: string
@@ -18,6 +19,8 @@ export function MainTable({ selectedMonth, selectedItem, onItemSelect, onMobileM
   const itemDetails = useAppStore((state) => state.itemDetails)
   const deleteItem = useAppStore((state) => state.deleteItem)
   const [isNewItemDialogOpen, setIsNewItemDialogOpen] = useState(false)
+  const [isEditItemDialogOpen, setIsEditItemDialogOpen] = useState(false)
+  const [editingItem, setEditingItem] = useState<ContentItem | null>(null)
 
   const getKindIcon = (kind: ContentKind) => {
     switch (kind) {
@@ -151,7 +154,8 @@ export function MainTable({ selectedMonth, selectedItem, onItemSelect, onMobileM
                   selectedItem === item.id ? 'bg-card ring-1 ring-cyan-400 ring-opacity-40' : ''
                 }`}
                 onDoubleClick={() => {
-                  onItemSelect(item.id)
+                  setEditingItem(item)
+                  setIsEditItemDialogOpen(true)
                 }}
                 onClick={() => {
                   // モバイルとタブレットでは1タップで詳細を開く
@@ -241,6 +245,18 @@ export function MainTable({ selectedMonth, selectedItem, onItemSelect, onMobileM
         isOpen={isNewItemDialogOpen}
         onClose={() => setIsNewItemDialogOpen(false)}
       />
+
+      {/* Edit Item Dialog */}
+      {editingItem && (
+        <EditItemDialog
+          isOpen={isEditItemDialogOpen}
+          onClose={() => {
+            setIsEditItemDialogOpen(false)
+            setEditingItem(null)
+          }}
+          item={editingItem}
+        />
+      )}
     </div>
   )
 }

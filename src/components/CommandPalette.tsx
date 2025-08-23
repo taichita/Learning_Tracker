@@ -8,9 +8,6 @@ import {
   Download, 
   Upload, 
   Palette, 
-  Book, 
-  Video, 
-  FileText,
   Command
 } from 'lucide-react'
 

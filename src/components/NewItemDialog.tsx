@@ -2,13 +2,15 @@
 
 import { useState, useRef, useEffect } from 'react'
 import DatePicker, { registerLocale } from 'react-datepicker'
-import ja from 'date-fns/locale/ja'
+import { ja } from 'date-fns/locale/ja'
 import 'react-datepicker/dist/react-datepicker.css'
 
 registerLocale('ja', ja)
 import { X, Plus, Book, Video, FileText } from 'lucide-react'
 import { ContentKind, ContentStatus } from '@/types'
 import { useAppStore } from '@/store/useAppStore'
+import { TagInput } from './TagInput'
+import { ExpandableMemoEditor } from './ExpandableMemoEditor'
 
 interface NewItemDialogProps {
   isOpen: boolean
@@ -21,6 +23,7 @@ export function NewItemDialog({ isOpen, onClose, initialKind = 'book' }: NewItem
     kind: initialKind,
     title: '',
     creators: '',
+    url: '',
     date: new Date(), // デフォルトで今日の日付（Dateオブジェクト）
     rating: '',
     oneLiner: '',
@@ -34,6 +37,37 @@ export function NewItemDialog({ isOpen, onClose, initialKind = 'book' }: NewItem
   const redo = useAppStore((state) => state.redo)
   const canUndo = useAppStore((state) => state.canUndo)
   const canRedo = useAppStore((state) => state.canRedo)
+  
+  // URL title extraction state
+  const [isExtractingTitle, setIsExtractingTitle] = useState(false)
+
+  // Extract title from URL
+  const extractTitleFromUrl = async (url: string) => {
+    if (!url || !url.startsWith('http')) return
+
+    setIsExtractingTitle(true)
+    try {
+      // Use a CORS proxy service to fetch the page
+      const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`
+      const response = await fetch(proxyUrl)
+      const data = await response.json()
+      
+      if (data.contents) {
+        // Parse HTML to extract title
+        const parser = new DOMParser()
+        const doc = parser.parseFromString(data.contents, 'text/html')
+        const title = doc.querySelector('title')?.textContent?.trim()
+        
+        if (title && title !== formData.title) {
+          setFormData(prev => ({ ...prev, title }))
+        }
+      }
+    } catch (error) {
+      console.error('Failed to extract title:', error)
+    } finally {
+      setIsExtractingTitle(false)
+    }
+  }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -49,6 +83,7 @@ export function NewItemDialog({ isOpen, onClose, initialKind = 'book' }: NewItem
       kind: formData.kind as ContentKind,
       title: formData.title.trim(),
       creators: formData.creators.split(',').map(c => c.trim()).filter(Boolean),
+      url: formData.url || undefined,
       date: formData.date.toISOString().split('T')[0],
       rating: formData.rating ? parseInt(formData.rating) : undefined,
       oneLiner: formData.oneLiner || undefined,
@@ -67,6 +102,7 @@ export function NewItemDialog({ isOpen, onClose, initialKind = 'book' }: NewItem
       kind: 'book',
       title: '',
       creators: '',
+      url: '',
       date: new Date(),
       rating: '',
       oneLiner: '',
@@ -178,6 +214,40 @@ export function NewItemDialog({ isOpen, onClose, initialKind = 'book' }: NewItem
             </div>
           </div>
 
+          {/* URL - Most Important Field */}
+          <div>
+            <label className="block text-sm font-medium mb-2">
+              URL <span className="text-cyan-300 text-xs">（最重要）</span>
+            </label>
+            <div className="flex gap-2">
+              <input
+                type="url"
+                value={formData.url}
+                onChange={(e) => setFormData(prev => ({ ...prev, url: e.target.value }))}
+                onBlur={(e) => {
+                  if (e.target.value && e.target.value.startsWith('http') && !formData.title.trim()) {
+                    extractTitleFromUrl(e.target.value)
+                  }
+                }}
+                className="flex-1 px-4 py-3 bg-background border border-border rounded-xl focus:ring-2 focus:ring-cyan-400 focus:border-transparent outline-none transition-all"
+                placeholder="https://..."
+              />
+              <button
+                type="button"
+                onClick={() => extractTitleFromUrl(formData.url)}
+                disabled={!formData.url || !formData.url.startsWith('http') || isExtractingTitle}
+                className="px-4 py-3 bg-cyan-900 hover:bg-cyan-800 disabled:bg-gray-700 disabled:cursor-not-allowed text-cyan-100 rounded-xl transition-colors text-sm flex items-center gap-2"
+                title="URLからタイトルを自動取得"
+              >
+                {isExtractingTitle ? (
+                  <div className="w-4 h-4 border-2 border-cyan-300 border-t-transparent rounded-full animate-spin"></div>
+                ) : (
+                  '取得'
+                )}
+              </button>
+            </div>
+          </div>
+
           {/* Title */}
           <div className="relative">
             <label className="block text-sm font-medium mb-2 ">
@@ -282,10 +352,9 @@ export function NewItemDialog({ isOpen, onClose, initialKind = 'book' }: NewItem
           {/* Tags */}
           <div>
             <label className="block text-sm font-medium mb-2 ">タグ</label>
-            <input
-              type="text"
+            <TagInput
               value={formData.tags}
-              onChange={(e) => setFormData(prev => ({ ...prev, tags: e.target.value }))}
+              onChange={(value) => setFormData(prev => ({ ...prev, tags: value }))}
               className="w-full px-4 py-3 bg-background border border-border rounded-xl focus:ring-2 focus:ring-accent-purple focus:border-transparent outline-none transition-all"
               placeholder="カンマ区切りで入力（例：経済学, ビジネス, 価格戦略）"
             />

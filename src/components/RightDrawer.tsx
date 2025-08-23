@@ -15,7 +15,6 @@ type TabType = 'overview' | 'ideas' | 'learnings' | 'notes' | 'highlights' | 'li
 
 export function RightDrawer({ itemId, onClose }: RightDrawerProps) {
   const [activeTab, setActiveTab] = useState<TabType>('overview')
-  const [isEditing, setIsEditing] = useState(false)
   const drawerRef = useRef<HTMLDivElement>(null)
   
   // Zustand store
@@ -26,7 +25,6 @@ export function RightDrawer({ itemId, onClose }: RightDrawerProps) {
   const addWorkIdea = useAppStore((state) => state.addWorkIdea)
   const addLearning = useAppStore((state) => state.addLearning)
   const deleteLearning = useAppStore((state) => state.deleteLearning)
-  const updateItemDetails = useAppStore((state) => state.updateItemDetails)
 
   const tabs = [
     { id: 'overview', label: '概要', icon: '📋' },
@@ -241,7 +239,7 @@ export function RightDrawer({ itemId, onClose }: RightDrawerProps) {
       {highlights.map((highlight) => (
         <div key={highlight.id} className="p-4 bg-card rounded-lg border border-border">
           <blockquote className="border-l-4 border-accent-purple pl-4 italic text-foreground mb-3">
-            "{highlight.quote}"
+            &ldquo;{highlight.quote}&rdquo;
           </blockquote>
           {highlight.source && (
             <p className="text-sm text-gray-500 mb-2">出典: {highlight.source}</p>
@@ -338,6 +336,36 @@ export function RightDrawer({ itemId, onClose }: RightDrawerProps) {
                     </div>
                   </div>
                 )}
+                {item.businessMemo && item.businessMemo.length > 0 && (
+                  <div className="p-4 bg-card rounded-lg">
+                    <p className="text-sm text-gray-500 mb-2">企画メモ</p>
+                    <div className="space-y-1">
+                      {item.businessMemo.slice(0, 3).map((memo) => (
+                        <p key={memo.id} className="text-sm text-foreground opacity-80 truncate">
+                          {memo.text}
+                        </p>
+                      ))}
+                      {item.businessMemo.length > 3 && (
+                        <p className="text-xs text-gray-500">他{item.businessMemo.length - 3}件...</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+                {item.lifeMemo && item.lifeMemo.length > 0 && (
+                  <div className="p-4 bg-card rounded-lg">
+                    <p className="text-sm text-gray-500 mb-2">人生メモ</p>
+                    <div className="space-y-1">
+                      {item.lifeMemo.slice(0, 3).map((memo) => (
+                        <p key={memo.id} className="text-sm text-foreground opacity-80 truncate">
+                          {memo.text}
+                        </p>
+                      ))}
+                      {item.lifeMemo.length > 3 && (
+                        <p className="text-xs text-gray-500">他{item.lifeMemo.length - 3}件...</p>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -392,7 +420,7 @@ export function RightDrawer({ itemId, onClose }: RightDrawerProps) {
   return (
     <div 
       ref={drawerRef}
-      className="w-full md:w-96 lg:w-96 bg-background md:border-l lg:border-l border-border h-full flex flex-col animate-drawer-open"
+      className="w-full md:w-[28rem] lg:w-[32rem] xl:w-[36rem] bg-background md:border-l lg:border-l border-border h-full flex flex-col animate-drawer-open"
     >
       {/* Header */}
       <div className="p-4 lg:p-6 border-b border-border bg-card">

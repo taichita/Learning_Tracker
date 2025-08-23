@@ -7,15 +7,32 @@ export interface ContentItem {
   kind: ContentKind
   title: string
   creators: string[]
+  url?: string
   date?: string
   amazonUrl?: string
   notebooklmUrl?: string
   rating?: number
   oneLiner?: string
+  businessMemo?: BusinessMemoItem[] // 企画に生かせそうな内容のメモ（配列形式）
+  lifeMemo?: LifeMemoItem[]         // 人生において生かせそうなエッセンスのメモ（配列形式）
   tags: string[]
   status: ContentStatus
   createdAt: string
   updatedAt: string
+}
+
+export interface BusinessMemoItem {
+  id: string
+  text: string
+  order: number
+  createdAt: string
+}
+
+export interface LifeMemoItem {
+  id: string
+  text: string
+  order: number
+  createdAt: string
 }
 
 export interface BulletPoint {

@@ -3,7 +3,7 @@
 import { create } from 'zustand'
 import { immer } from 'zustand/middleware/immer'
 import { subscribeWithSelector } from 'zustand/middleware'
-import { ContentItem, ItemDetails, AppState, UndoableAction, BulletPoint } from '@/types'
+import { ContentItem, ItemDetails, AppState, BulletPoint, BusinessMemoItem, LifeMemoItem } from '@/types'
 
 interface AppStoreState extends AppState {
   // Actions
@@ -14,7 +14,7 @@ interface AppStoreState extends AppState {
   // Item Details Actions
   updateItemDetails: (itemId: string, details: Partial<ItemDetails>) => void
   addWorkIdea: (itemId: string, text: string) => void
-  updateWorkIdea: (itemId: string, ideaId: string, updates: Partial<any>) => void
+  updateWorkIdea: (itemId: string, ideaId: string, updates: Partial<BulletPoint>) => void
   deleteWorkIdea: (itemId: string, ideaId: string) => void
   reorderWorkIdeas: (itemId: string, from: number, to: number) => void
   
@@ -22,6 +22,10 @@ interface AppStoreState extends AppState {
   updateLearning: (itemId: string, learningId: string, updates: Partial<BulletPoint>) => void
   deleteLearning: (itemId: string, learningId: string) => void
   reorderLearnings: (itemId: string, from: number, to: number) => void
+  
+  // Business and Life Memo Actions
+  updateBusinessMemos: (itemId: string, memos: BusinessMemoItem[]) => void
+  updateLifeMemos: (itemId: string, memos: LifeMemoItem[]) => void
   
   // UI State Actions
   setSelectedItem: (itemId: string | null) => void
@@ -40,12 +44,70 @@ interface AppStoreState extends AppState {
 
 const generateId = () => Math.random().toString(36).substr(2, 9)
 
+// Local storage key
+const STORAGE_KEY = 'learning-tracker-data'
+
+// Migrate old string memo format to new array format
+const migrateMemoFormat = (item: any) => {
+  if (typeof item.businessMemo === 'string') {
+    const text = item.businessMemo.trim()
+    item.businessMemo = text ? [{
+      id: generateId(),
+      text,
+      order: 0,
+      createdAt: new Date().toISOString()
+    }] : []
+  }
+  if (typeof item.lifeMemo === 'string') {
+    const text = item.lifeMemo.trim()
+    item.lifeMemo = text ? [{
+      id: generateId(),
+      text,
+      order: 0,
+      createdAt: new Date().toISOString()
+    }] : []
+  }
+  return item
+}
+
+// Load initial state from localStorage
+const loadFromStorage = () => {
+  if (typeof window === 'undefined') return null
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY)
+    if (!stored) return null
+    
+    const data = JSON.parse(stored)
+    // Migrate old format to new format
+    if (data.items) {
+      data.items = data.items.map(migrateMemoFormat)
+    }
+    return data
+  } catch (error) {
+    console.error('Failed to load from localStorage:', error)
+    return null
+  }
+}
+
+// Save state to localStorage
+const saveToStorage = (state: { items: ContentItem[], itemDetails: Record<string, ItemDetails> }) => {
+  if (typeof window === 'undefined') return
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
+  } catch (error) {
+    console.error('Failed to save to localStorage:', error)
+  }
+}
+
 export const useAppStore = create<AppStoreState>()(
   subscribeWithSelector(
-    immer((set, get) => ({
-      // Initial State
-      items: [],
-      itemDetails: {},
+    immer((set, get) => {
+      const storedData = loadFromStorage()
+      
+      return {
+      // Initial State - load from storage if available
+      items: storedData?.items || [],
+      itemDetails: storedData?.itemDetails || {},
       selectedMonth: (() => {
         const now = new Date()
         return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
@@ -58,7 +120,13 @@ export const useAppStore = create<AppStoreState>()(
       addItem: (item) => {
         const action = () => {
           set((state) => {
-            state.items.push({ ...item, id: generateId() })
+            const newItem = { 
+              ...item, 
+              id: generateId(),
+              businessMemo: item.businessMemo || [],
+              lifeMemo: item.lifeMemo || []
+            }
+            state.items.push(newItem)
           })
         }
         
@@ -417,7 +485,7 @@ export const useAppStore = create<AppStoreState>()(
       },
 
       // Undo/Redo Actions
-      executeUndoable: (action, inverse) => {
+      executeUndoable: (action) => {
         set((state) => {
           // Save current state for undo
           state.undoStack.push(JSON.parse(JSON.stringify({
@@ -435,6 +503,13 @@ export const useAppStore = create<AppStoreState>()(
         })
         
         action()
+        
+        // Save to localStorage after action
+        const currentState = get()
+        saveToStorage({
+          items: currentState.items,
+          itemDetails: currentState.itemDetails
+        })
       },
 
       undo: () => {
@@ -452,6 +527,13 @@ export const useAppStore = create<AppStoreState>()(
           const previousState = currentState.undoStack.pop()!
           currentState.items = previousState.items
           currentState.itemDetails = previousState.itemDetails
+        })
+
+        // Save to localStorage after undo
+        const currentState = get()
+        saveToStorage({
+          items: currentState.items,
+          itemDetails: currentState.itemDetails
         })
       },
 
@@ -471,10 +553,47 @@ export const useAppStore = create<AppStoreState>()(
           currentState.items = nextState.items
           currentState.itemDetails = nextState.itemDetails
         })
+
+        // Save to localStorage after redo
+        const currentState = get()
+        saveToStorage({
+          items: currentState.items,
+          itemDetails: currentState.itemDetails
+        })
       },
 
       canUndo: () => get().undoStack.length > 0,
       canRedo: () => get().redoStack.length > 0,
-    }))
+
+      // Business and Life Memo Actions
+      updateBusinessMemos: (itemId, memos) => {
+        const action = () => {
+          set((state) => {
+            const item = state.items.find(i => i.id === itemId)
+            if (item) {
+              item.businessMemo = memos
+              item.updatedAt = new Date().toISOString()
+            }
+          })
+        }
+
+        get().executeUndoable(action)
+      },
+
+      updateLifeMemos: (itemId, memos) => {
+        const action = () => {
+          set((state) => {
+            const item = state.items.find(i => i.id === itemId)
+            if (item) {
+              item.lifeMemo = memos
+              item.updatedAt = new Date().toISOString()
+            }
+          })
+        }
+
+        get().executeUndoable(action)
+      },
+      }
+    })
   )
 )
