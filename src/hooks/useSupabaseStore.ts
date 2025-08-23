@@ -110,7 +110,7 @@ export function useSupabaseStore() {
       }
 
       // Transform and merge with local store
-      const transformedItems = items.map(transformFromSupabase)
+      const transformedItems = (items || []).map(transformFromSupabase)
       
       // Clear and replace items using direct assignment
       const { useAppStore } = await import('../store/useAppStore')
@@ -126,7 +126,7 @@ export function useSupabaseStore() {
     } finally {
       setSyncing(false)
     }
-  }, [user, store, syncing])
+  }, [user?.id]) // Only depend on user ID to prevent infinite loops
 
   // Real-time subscription for changes
   useEffect(() => {
@@ -191,13 +191,13 @@ export function useSupabaseStore() {
     }
   }, [user, store])
 
-  // Auto-sync when user changes
+  // Auto-sync when user changes (only once when user first logs in)
   useEffect(() => {
     if (user && !authLoading) {
       // Load from Supabase when user logs in
       loadFromSupabase()
     }
-  }, [user, authLoading, loadFromSupabase])
+  }, [user?.id, authLoading]) // Remove loadFromSupabase dependency to prevent infinite loop
 
   // Override store actions to sync with Supabase
   const addItem = useCallback(async (item: ContentItem) => {

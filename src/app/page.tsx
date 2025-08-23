@@ -9,20 +9,19 @@ import { NewItemDialog } from '@/components/NewItemDialog'
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
 import { useAppStore } from '@/store/useAppStore'
 import { AuthButton } from '@/components/AuthButton'
-import { useSupabaseStore } from '@/hooks/useSupabaseStore'
+import { useSupabaseStore } from '@/hooks/useSupabaseStoreFixed'
 
 export default function Home() {
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false)
   const [isNewItemDialogOpen, setIsNewItemDialogOpen] = useState(false)
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
   
-  // Use Supabase store instead of direct Zustand store
+  // Use fixed Supabase store with proper sync
   const {
     user,
     authLoading,
     syncing,
     error: syncError,
-    items,
     selectedItem,
     selectedMonth,
     setSelectedItem,
