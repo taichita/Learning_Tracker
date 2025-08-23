@@ -8,21 +8,30 @@ import { CommandPalette } from '@/components/CommandPalette'
 import { NewItemDialog } from '@/components/NewItemDialog'
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
 import { useAppStore } from '@/store/useAppStore'
+import { AuthButton } from '@/components/AuthButton'
+import { useSupabaseStore } from '@/hooks/useSupabaseStore'
 
 export default function Home() {
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false)
   const [isNewItemDialogOpen, setIsNewItemDialogOpen] = useState(false)
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
   
-  // Zustand store
-  const selectedItem = useAppStore((state) => state.selectedItem)
-  const selectedMonth = useAppStore((state) => state.selectedMonth)
-  const setSelectedItem = useAppStore((state) => state.setSelectedItem)
-  const setSelectedMonth = useAppStore((state) => state.setSelectedMonth)
-  const undo = useAppStore((state) => state.undo)
-  const redo = useAppStore((state) => state.redo)
-  const canUndo = useAppStore((state) => state.canUndo)
-  const canRedo = useAppStore((state) => state.canRedo)
+  // Use Supabase store instead of direct Zustand store
+  const {
+    user,
+    authLoading,
+    syncing,
+    error: syncError,
+    items,
+    selectedItem,
+    selectedMonth,
+    setSelectedItem,
+    setSelectedMonth,
+    undo,
+    redo,
+    canUndo,
+    canRedo
+  } = useSupabaseStore()
 
   // Web Share API: URLパラメータを検出して新規作成ダイアログを開く
   useEffect(() => {
@@ -59,6 +68,39 @@ export default function Home() {
 
   return (
     <div className="flex h-screen bg-background">
+      {/* Auth Panel */}
+      {!user && !authLoading && (
+        <div className="fixed inset-0 bg-white z-50 overflow-auto">
+          <div className="max-w-md mx-auto py-8">
+            <AuthButton />
+          </div>
+        </div>
+      )}
+      
+      {/* Sync Status */}
+      {syncError && (
+        <div className="fixed top-4 right-4 bg-red-100 border border-red-400 text-red-700 px-4 py-2 rounded z-40">
+          {syncError}
+        </div>
+      )}
+      
+      {syncing && (
+        <div className="fixed top-4 right-4 bg-blue-100 border border-blue-400 text-blue-700 px-4 py-2 rounded z-40 flex items-center gap-2">
+          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+          同期中...
+        </div>
+      )}
+      
+      {/* Loading overlay */}
+      {authLoading && (
+        <div className="fixed inset-0 bg-white z-50 flex items-center justify-center">
+          <div className="flex flex-col items-center gap-4">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            <p className="text-gray-600">認証情報を確認中...</p>
+          </div>
+        </div>
+      )}
+
       {/* Mobile Sidebar Overlay */}
       {isMobileSidebarOpen && (
         <div 

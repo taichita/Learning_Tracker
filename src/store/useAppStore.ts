@@ -485,7 +485,7 @@ export const useAppStore = create<AppStoreState>()(
       },
 
       // Undo/Redo Actions
-      executeUndoable: (action) => {
+      executeUndoable: (action, inverse) => {
         set((state) => {
           // Save current state for undo
           state.undoStack.push(JSON.parse(JSON.stringify({
