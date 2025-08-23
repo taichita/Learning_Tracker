@@ -567,6 +567,9 @@ export const useAppStore = create<AppStoreState>()(
 
       // Business and Life Memo Actions
       updateBusinessMemos: (itemId, memos) => {
+        const currentItem = get().items.find(item => item.id === itemId)
+        if (!currentItem) return
+
         const action = () => {
           set((state) => {
             const item = state.items.find(i => i.id === itemId)
@@ -577,10 +580,23 @@ export const useAppStore = create<AppStoreState>()(
           })
         }
 
-        get().executeUndoable(action)
+        const inverse = () => {
+          set((state) => {
+            const item = state.items.find(i => i.id === itemId)
+            if (item) {
+              item.businessMemo = currentItem.businessMemo
+              item.updatedAt = currentItem.updatedAt
+            }
+          })
+        }
+
+        get().executeUndoable(action, inverse)
       },
 
       updateLifeMemos: (itemId, memos) => {
+        const currentItem = get().items.find(item => item.id === itemId)
+        if (!currentItem) return
+
         const action = () => {
           set((state) => {
             const item = state.items.find(i => i.id === itemId)
@@ -591,7 +607,17 @@ export const useAppStore = create<AppStoreState>()(
           })
         }
 
-        get().executeUndoable(action)
+        const inverse = () => {
+          set((state) => {
+            const item = state.items.find(i => i.id === itemId)
+            if (item) {
+              item.lifeMemo = currentItem.lifeMemo
+              item.updatedAt = currentItem.updatedAt
+            }
+          })
+        }
+
+        get().executeUndoable(action, inverse)
       },
       }
     })
