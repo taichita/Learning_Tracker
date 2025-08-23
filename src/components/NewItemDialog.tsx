@@ -34,6 +34,31 @@ export function NewItemDialog({ isOpen, onClose, initialKind = 'book' }: NewItem
   const [lifeMemos, setLifeMemos] = useState<import('@/types').LifeMemoItem[]>([])
   const titleInputRef = useRef<HTMLInputElement>(null)
 
+  // Web Share API / URLパラメータから初期値を設定
+  useEffect(() => {
+    if (isOpen && typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search)
+      const sharedUrl = urlParams.get('url')
+      const sharedTitle = urlParams.get('title')
+      
+      if (sharedUrl || sharedTitle) {
+        setFormData(prev => ({
+          ...prev,
+          url: sharedUrl || prev.url,
+          title: sharedTitle || prev.title
+        }))
+        
+        // URLパラメータをクリア（履歴に残さない）
+        window.history.replaceState({}, '', window.location.pathname)
+        
+        // URLがあってタイトルがない場合は自動取得を試行
+        if (sharedUrl && !sharedTitle) {
+          extractTitleFromUrl(sharedUrl)
+        }
+      }
+    }
+  }, [isOpen])
+
   const addItem = useAppStore((state) => state.addItem)
   const undo = useAppStore((state) => state.undo)
   const redo = useAppStore((state) => state.redo)
@@ -228,10 +253,18 @@ export function NewItemDialog({ isOpen, onClose, initialKind = 'book' }: NewItem
         {/* Header */}
         <div className="p-4 lg:p-6 border-b border-border">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg lg:text-xl font-bold">新しい学習記録を追加</h2>
+            <input
+              ref={titleInputRef}
+              type="text"
+              value={formData.title}
+              onChange={handleTitleChange}
+              className="flex-1 text-lg lg:text-xl font-bold bg-transparent border-none outline-none placeholder-gray-500"
+              placeholder="書籍や動画のタイトルを入力"
+              style={{ fontSize: 'inherit', fontWeight: 'inherit' }}
+            />
             <button 
               onClick={handleClose}
-              className="p-2 hover:bg-background rounded-lg transition-colors"
+              className="p-2 hover:bg-background rounded-lg transition-colors ml-4"
             >
               <X size={20} />
             </button>
@@ -240,80 +273,34 @@ export function NewItemDialog({ isOpen, onClose, initialKind = 'book' }: NewItem
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-4 lg:p-6 space-y-4">
-          {/* 基本情報 - 最上位 */}
-          <div className="space-y-3 p-3 bg-background/50 rounded-lg border border-border">
-            {/* タイトル、作者、評価を見やすく */}
-            <div className="grid grid-cols-12 gap-3">
-              <div className="col-span-1">
-                <label className="block text-xs font-medium mb-1">種別</label>
-                <div className="flex gap-1">
-                  {kindOptions.map((option) => {
-                    const Icon = option.icon
-                    return (
-                      <button
-                        key={option.value}
-                        type="button"
-                        onClick={() => {
-                          setFormData(prev => ({ ...prev, kind: option.value as ContentKind }))
-                        }}
-                        className={`p-1 border rounded transition-all ${
-                          formData.kind === option.value
-                            ? 'border-accent-purple bg-accent-purple bg-opacity-20'
-                            : 'border-border hover:border-accent-purple'
-                        }`}
-                        title={option.label}
-                      >
-                        <Icon size={12} className={option.color} />
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
-
-              <div className="col-span-6">
-                <label className="block text-sm font-medium mb-1">
-                  タイトル <span className="text-red-400">*</span>
-                </label>
-                <input
-                  ref={titleInputRef}
-                  type="text"
-                  value={formData.title}
-                  onChange={handleTitleChange}
-                  className="w-full px-3 py-2 bg-background border border-border rounded focus:ring-1 focus:ring-cyan-400 focus:border-transparent outline-none transition-all"
-                  placeholder="タイトル"
-                  required
-                />
-              </div>
-
-              <div className="col-span-3">
-                <label className="block text-sm font-medium mb-1">作者</label>
-                <input
-                  type="text"
-                  value={formData.creators}
-                  onChange={(e) => setFormData(prev => ({ ...prev, creators: e.target.value }))}
-                  className="w-full px-3 py-2 bg-background border border-border rounded focus:ring-1 focus:ring-accent-purple focus:border-transparent outline-none transition-all"
-                  placeholder="作者名"
-                />
-              </div>
-
-              <div className="col-span-2">
-                <label className="block text-sm font-medium mb-1">評価</label>
-                <select
-                  value={formData.rating}
-                  onChange={(e) => setFormData(prev => ({ ...prev, rating: e.target.value }))}
-                  className="w-full px-2 py-2 bg-background border border-border rounded focus:ring-1 focus:ring-accent-purple focus:border-transparent outline-none transition-all"
-                >
-                  <option value="">-</option>
-                  {Array.from({ length: 10 }, (_, i) => i + 1).map(num => (
-                    <option key={num} value={num}>{num}</option>
-                  ))}
-                </select>
+          {/* コンパクト基本情報 */}
+          <div className="grid grid-cols-12 gap-3">
+            <div className="col-span-1">
+              <div className="flex gap-1">
+                {kindOptions.map((option) => {
+                  const Icon = option.icon
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => {
+                        setFormData(prev => ({ ...prev, kind: option.value as ContentKind }))
+                      }}
+                      className={`p-2 border rounded transition-all ${
+                        formData.kind === option.value
+                          ? 'border-accent-purple bg-accent-purple bg-opacity-20'
+                          : 'border-border hover:border-accent-purple'
+                      }`}
+                      title={option.label}
+                    >
+                      <Icon size={16} className={option.color} />
+                    </button>
+                  )
+                })}
               </div>
             </div>
 
-            {/* URL */}
-            <div>
-              <label className="block text-sm font-medium mb-1">URL</label>
+            <div className="col-span-7">
               <div className="flex gap-2">
                 <input
                   type="url"
@@ -324,7 +311,7 @@ export function NewItemDialog({ isOpen, onClose, initialKind = 'book' }: NewItem
                       extractTitleFromUrl(e.target.value)
                     }
                   }}
-                  className="flex-1 px-3 py-2 bg-background border border-border rounded focus:ring-1 focus:ring-cyan-400 focus:border-transparent outline-none transition-all"
+                  className="flex-1 px-3 py-2 bg-background border border-border rounded focus:ring-1 focus:ring-cyan-400 focus:border-transparent outline-none transition-all text-sm"
                   placeholder="https://..."
                 />
                 <button
@@ -341,6 +328,29 @@ export function NewItemDialog({ isOpen, onClose, initialKind = 'book' }: NewItem
                   )}
                 </button>
               </div>
+            </div>
+
+            <div className="col-span-3">
+              <input
+                type="text"
+                value={formData.creators}
+                onChange={(e) => setFormData(prev => ({ ...prev, creators: e.target.value }))}
+                className="w-full px-3 py-2 bg-background border border-border rounded focus:ring-1 focus:ring-accent-purple focus:border-transparent outline-none transition-all"
+                placeholder="作者名"
+              />
+            </div>
+
+            <div className="col-span-1">
+              <select
+                value={formData.rating}
+                onChange={(e) => setFormData(prev => ({ ...prev, rating: e.target.value }))}
+                className="w-full px-2 py-2 bg-background border border-border rounded focus:ring-1 focus:ring-accent-purple focus:border-transparent outline-none transition-all"
+              >
+                <option value="">-</option>
+                {Array.from({ length: 10 }, (_, i) => i + 1).map(num => (
+                  <option key={num} value={num}>{num}</option>
+                ))}
+              </select>
             </div>
           </div>
 

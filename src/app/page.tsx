@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { MonthSidebar } from '@/components/MonthSidebar'
 import { MainTable } from '@/components/MainTable'
 import { RightDrawer } from '@/components/RightDrawer'
@@ -23,6 +23,14 @@ export default function Home() {
   const redo = useAppStore((state) => state.redo)
   const canUndo = useAppStore((state) => state.canUndo)
   const canRedo = useAppStore((state) => state.canRedo)
+
+  // Web Share API: URLパラメータを検出して新規作成ダイアログを開く
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search)
+    if (urlParams.has('url') || urlParams.has('title')) {
+      setIsNewItemDialogOpen(true)
+    }
+  }, [])
 
   // Keyboard shortcuts
   useKeyboardShortcuts({
