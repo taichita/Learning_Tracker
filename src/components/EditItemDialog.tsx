@@ -49,23 +49,70 @@ export function EditItemDialog({ isOpen, onClose, item }: EditItemDialogProps) {
 
     setIsExtractingTitle(true)
     try {
-      // Use a CORS proxy service to fetch the page
-      const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`
-      const response = await fetch(proxyUrl)
-      const data = await response.json()
+      // Try multiple CORS proxy services
+      const proxies = [
+        `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,
+        `https://corsproxy.io/?${encodeURIComponent(url)}`,
+        `https://cors-anywhere.herokuapp.com/${url}`
+      ]
       
-      if (data.contents) {
-        // Parse HTML to extract title
-        const parser = new DOMParser()
-        const doc = parser.parseFromString(data.contents, 'text/html')
-        const title = doc.querySelector('title')?.textContent?.trim()
-        
-        if (title && title !== formData.title) {
-          setFormData(prev => ({ ...prev, title }))
+      for (const proxyUrl of proxies) {
+        try {
+          const response = await fetch(proxyUrl)
+          
+          if (proxyUrl.includes('allorigins')) {
+            const data = await response.json()
+            if (data.contents) {
+              const parser = new DOMParser()
+              const doc = parser.parseFromString(data.contents, 'text/html')
+              const title = doc.querySelector('title')?.textContent?.trim()
+              
+              if (title && title !== formData.title) {
+                setFormData(prev => ({ ...prev, title }))
+                return
+              }
+            }
+          } else {
+            // Direct HTML response
+            const html = await response.text()
+            const parser = new DOMParser()
+            const doc = parser.parseFromString(html, 'text/html')
+            const title = doc.querySelector('title')?.textContent?.trim()
+            
+            if (title && title !== formData.title) {
+              setFormData(prev => ({ ...prev, title }))
+              return
+            }
+          }
+        } catch (proxyError) {
+          console.warn(`Proxy ${proxyUrl} failed:`, proxyError)
+          continue
+        }
+      }
+      
+      // If all proxies fail, try to extract from common URL patterns
+      const patterns = [
+        /youtube\.com\/watch\?v=([^&]+)/,
+        /youtu\.be\/([^?]+)/,
+        /amazon\.co\.jp\/.*\/dp\/([A-Z0-9]+)/,
+        /amazon\.com\/.*\/dp\/([A-Z0-9]+)/
+      ]
+      
+      for (const pattern of patterns) {
+        const match = url.match(pattern)
+        if (match) {
+          // Basic title extraction for known patterns
+          if (url.includes('youtube') || url.includes('youtu.be')) {
+            setFormData(prev => ({ ...prev, title: 'YouTube動画' }))
+          } else if (url.includes('amazon')) {
+            setFormData(prev => ({ ...prev, title: 'Amazon商品' }))
+          }
+          break
         }
       }
     } catch (error) {
       console.error('Failed to extract title:', error)
+      alert('タイトルの自動取得に失敗しました。手動で入力してください。')
     } finally {
       setIsExtractingTitle(false)
     }
@@ -199,186 +246,13 @@ export function EditItemDialog({ isOpen, onClose, item }: EditItemDialogProps) {
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="p-4 lg:p-6 space-y-2">
-          {/* URL - Most Important Field */}
-          <div>
-            <label className="block text-sm font-medium mb-1">
-              URL <span className="text-cyan-300 text-xs">（最重要）</span>
-            </label>
-            <div className="flex gap-2">
-              <input
-                type="url"
-                value={formData.url}
-                onChange={(e) => setFormData(prev => ({ ...prev, url: e.target.value }))}
-                onBlur={(e) => {
-                  if (e.target.value && e.target.value.startsWith('http') && !formData.title.trim()) {
-                    extractTitleFromUrl(e.target.value)
-                  }
-                }}
-                className="flex-1 px-3 py-2 bg-background border border-border rounded-lg focus:ring-2 focus:ring-cyan-400 focus:border-transparent outline-none transition-all"
-                placeholder="https://..."
-              />
-              <button
-                type="button"
-                onClick={() => extractTitleFromUrl(formData.url)}
-                disabled={!formData.url || !formData.url.startsWith('http') || isExtractingTitle}
-                className="px-3 py-2 bg-cyan-900 hover:bg-cyan-800 disabled:bg-gray-700 disabled:cursor-not-allowed text-cyan-100 rounded-lg transition-colors text-sm flex items-center gap-1"
-                title="URLからタイトルを自動取得"
-              >
-                {isExtractingTitle ? (
-                  <div className="w-4 h-4 border-2 border-cyan-300 border-t-transparent rounded-full animate-spin"></div>
-                ) : (
-                  '取得'
-                )}
-              </button>
+        <form onSubmit={handleSubmit} className="p-4 lg:p-6 space-y-4">
+          {/* 重要: メモ欄を最上位に配置 */}
+          <div className="space-y-4 p-4 bg-card/50 rounded-lg border-2 border-cyan-500/30">
+            <div className="flex items-center gap-2 mb-4">
+              <span className="text-2xl">✍️</span>
+              <h3 className="text-lg font-bold text-cyan-300">メモ欄（メイン）</h3>
             </div>
-          </div>
-
-          {/* Compact Top Row - Kind, Title, Creators */}
-          <div className="grid grid-cols-12 gap-2">
-            {/* Kind Selection - Ultra Compact */}
-            <div className="col-span-3">
-              <label className="block text-xs font-medium mb-1">種別</label>
-              <div className="flex gap-1">
-                {kindOptions.map((option) => {
-                  const Icon = option.icon
-                  return (
-                    <button
-                      key={option.value}
-                      type="button"
-                      onClick={() => {
-                        setFormData(prev => ({ ...prev, kind: option.value as ContentKind }))
-                      }}
-                      className={`p-1.5 border rounded transition-all ${
-                        formData.kind === option.value
-                          ? 'border-accent-purple bg-accent-purple bg-opacity-20'
-                          : 'border-border hover:border-accent-purple'
-                      }`}
-                      title={option.label}
-                    >
-                      <Icon size={14} className={option.color} />
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-
-            {/* Title - Compact */}
-            <div className="col-span-6">
-              <label className="block text-xs font-medium mb-1">
-                タイトル <span className="text-red-400">*</span>
-              </label>
-              <input
-                ref={titleInputRef}
-                type="text"
-                value={formData.title}
-                onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
-                className="w-full px-3 py-2 bg-background border border-border rounded-lg focus:ring-2 focus:ring-cyan-400 focus:border-transparent outline-none transition-all text-sm"
-                placeholder="タイトル"
-                required
-              />
-            </div>
-
-            {/* Creators - Compact */}
-            <div className="col-span-3">
-              <label className="block text-xs font-medium mb-1">作者</label>
-              <input
-                type="text"
-                value={formData.creators}
-                onChange={(e) => setFormData(prev => ({ ...prev, creators: e.target.value }))}
-                className="w-full px-3 py-2 bg-background border border-border rounded-lg focus:ring-2 focus:ring-accent-purple focus:border-transparent outline-none transition-all text-sm"
-                placeholder="作者名"
-              />
-            </div>
-          </div>
-
-          {/* Compact Metadata Row */}
-          <div className="grid grid-cols-12 gap-2">
-            {/* Date - Compact */}
-            <div className="col-span-4">
-              <label className="block text-xs font-medium mb-1">完了日</label>
-              <DatePicker
-                selected={formData.date}
-                onChange={(date: Date | null) => {
-                  if (date) {
-                    setFormData(prev => ({ ...prev, date }))
-                  }
-                }}
-                locale="ja"
-                dateFormat="yyyy/MM/dd"
-                maxDate={new Date()}
-                todayButton="今日"
-                showPopperArrow={false}
-                className="w-full px-2 py-2 bg-background border border-border rounded-lg focus:ring-2 focus:ring-accent-purple focus:border-transparent outline-none transition-all text-white text-sm"
-                calendarClassName="bg-background border border-border rounded-xl shadow-lg"
-                placeholderText="日付"
-              />
-            </div>
-
-            {/* Rating - Compact */}
-            <div className="col-span-3">
-              <label className="block text-xs font-medium mb-1">評価</label>
-              <select
-                value={formData.rating}
-                onChange={(e) => setFormData(prev => ({ ...prev, rating: e.target.value }))}
-                className="w-full px-2 py-2 bg-background border border-border rounded-lg focus:ring-2 focus:ring-accent-purple focus:border-transparent outline-none transition-all text-sm"
-              >
-                <option value="">-</option>
-                {Array.from({ length: 10 }, (_, i) => i + 1).map(num => (
-                  <option key={num} value={num}>{num}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Status - Compact */}
-            <div className="col-span-5">
-              <label className="block text-xs font-medium mb-1">進捗</label>
-              <div className="flex gap-1">
-                {statusOptions.map((option) => (
-                  <button
-                    key={option.value}
-                    type="button"
-                    onClick={() => setFormData(prev => ({ ...prev, status: option.value as ContentStatus }))}
-                    className={`px-2 py-1 border rounded transition-all text-xs font-medium flex-1 ${
-                      formData.status === option.value
-                        ? 'border-accent-purple bg-accent-purple bg-opacity-20'
-                        : 'border-border hover:border-accent-purple'
-                    }`}
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* One-liner - Compact */}
-          <div>
-            <label className="block text-xs font-medium mb-1">ひと言まとめ</label>
-            <input
-              type="text"
-              value={formData.oneLiner}
-              onChange={(e) => setFormData(prev => ({ ...prev, oneLiner: e.target.value }))}
-              className="w-full px-3 py-2 bg-background border border-border rounded-lg focus:ring-2 focus:ring-accent-purple focus:border-transparent outline-none transition-all text-sm"
-              placeholder="学んだことを一言で..."
-              maxLength={120}
-            />
-          </div>
-
-          {/* Tags - Compact with Suggestions */}
-          <div>
-            <label className="block text-xs font-medium mb-1">タグ</label>
-            <TagInput
-              value={formData.tags}
-              onChange={(value) => setFormData(prev => ({ ...prev, tags: value }))}
-              className="w-full px-3 py-2 bg-background border border-border rounded-lg focus:ring-2 focus:ring-accent-purple focus:border-transparent outline-none transition-all text-sm"
-              placeholder="カンマ区切り（例：経済学, ビジネス）"
-            />
-          </div>
-
-          {/* Main Content - Expandable Memo Fields */}
-          <div className="space-y-4 pt-2 border-t border-border">
-            <h3 className="text-sm font-bold text-cyan-300">メモ欄（重要）</h3>
             
             {/* Business Memo */}
             <ExpandableMemoEditor
@@ -386,7 +260,7 @@ export function EditItemDialog({ isOpen, onClose, item }: EditItemDialogProps) {
               items={item.businessMemo || []}
               onItemsChange={(items) => updateBusinessMemos(item.id, items)}
               placeholder="• Enterで箇条書き&#10;• Shift+Enterで改行&#10;• 企画・ビジネスアイデア"
-              title="企画に生かせそうな内容のメモ"
+              title="💡 企画に生かせそうな内容"
             />
 
             {/* Life Memo */}
@@ -395,8 +269,187 @@ export function EditItemDialog({ isOpen, onClose, item }: EditItemDialogProps) {
               items={item.lifeMemo || []}
               onItemsChange={(items) => updateLifeMemos(item.id, items)}
               placeholder="• Enterで箇条書き&#10;• Shift+Enterで改行&#10;• 人生の教訓・気づき"
-              title="人生において生かせそうなエッセンスのメモ"
+              title="🌟 人生において生かせそうなエッセンス"
             />
+          </div>
+
+          {/* コンパクトな基本情報セクション */}
+          <div className="space-y-3 p-3 bg-background/50 rounded-lg border border-border">
+            <h4 className="text-sm font-medium text-gray-400 flex items-center gap-2">
+              <span>📝</span> 基本情報（コンパクト）
+            </h4>
+            
+            {/* URL - Most Important Field */}
+            <div>
+              <label className="block text-xs font-medium mb-1">
+                URL <span className="text-cyan-300 text-xs">（自動取得）</span>
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="url"
+                  value={formData.url}
+                  onChange={(e) => setFormData(prev => ({ ...prev, url: e.target.value }))}
+                  onBlur={(e) => {
+                    if (e.target.value && e.target.value.startsWith('http') && !formData.title.trim()) {
+                      extractTitleFromUrl(e.target.value)
+                    }
+                  }}
+                  className="flex-1 px-2 py-1 bg-background border border-border rounded focus:ring-1 focus:ring-cyan-400 focus:border-transparent outline-none transition-all text-sm"
+                  placeholder="https://..."
+                />
+                <button
+                  type="button"
+                  onClick={() => extractTitleFromUrl(formData.url)}
+                  disabled={!formData.url || !formData.url.startsWith('http') || isExtractingTitle}
+                  className="px-2 py-1 bg-cyan-900 hover:bg-cyan-800 disabled:bg-gray-700 disabled:cursor-not-allowed text-cyan-100 rounded transition-colors text-xs flex items-center gap-1"
+                  title="URLからタイトルを自動取得"
+                >
+                  {isExtractingTitle ? (
+                    <div className="w-3 h-3 border border-cyan-300 border-t-transparent rounded-full animate-spin"></div>
+                  ) : (
+                    '取得'
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* 超コンパクト基本情報グリッド */}
+            <div className="grid grid-cols-12 gap-2 text-xs">
+              {/* Kind Selection - Ultra Compact */}
+              <div className="col-span-2">
+                <label className="block text-xs font-medium mb-1">種別</label>
+                <div className="flex gap-1">
+                  {kindOptions.map((option) => {
+                    const Icon = option.icon
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => {
+                          setFormData(prev => ({ ...prev, kind: option.value as ContentKind }))
+                        }}
+                        className={`p-1 border rounded transition-all ${
+                          formData.kind === option.value
+                            ? 'border-accent-purple bg-accent-purple bg-opacity-20'
+                            : 'border-border hover:border-accent-purple'
+                        }`}
+                        title={option.label}
+                      >
+                        <Icon size={12} className={option.color} />
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* Title - Compact */}
+              <div className="col-span-6">
+                <label className="block text-xs font-medium mb-1">
+                  タイトル <span className="text-red-400">*</span>
+                </label>
+                <input
+                  ref={titleInputRef}
+                  type="text"
+                  value={formData.title}
+                  onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+                  className="w-full px-2 py-1 bg-background border border-border rounded focus:ring-1 focus:ring-cyan-400 focus:border-transparent outline-none transition-all text-xs"
+                  placeholder="タイトル"
+                  required
+                />
+              </div>
+
+              {/* Creators - Compact */}
+              <div className="col-span-4">
+                <label className="block text-xs font-medium mb-1">作者</label>
+                <input
+                  type="text"
+                  value={formData.creators}
+                  onChange={(e) => setFormData(prev => ({ ...prev, creators: e.target.value }))}
+                  className="w-full px-2 py-1 bg-background border border-border rounded focus:ring-1 focus:ring-accent-purple focus:border-transparent outline-none transition-all text-xs"
+                  placeholder="作者名"
+                />
+              </div>
+            </div>
+
+            {/* その他情報を1行に */}
+            <div className="grid grid-cols-12 gap-2 text-xs">
+              <div className="col-span-3">
+                <label className="block text-xs font-medium mb-1">完了日</label>
+                <DatePicker
+                  selected={formData.date}
+                  onChange={(date: Date | null) => {
+                    if (date) {
+                      setFormData(prev => ({ ...prev, date }))
+                    }
+                  }}
+                  locale="ja"
+                  dateFormat="MM/dd"
+                  maxDate={new Date()}
+                  todayButton="今日"
+                  showPopperArrow={false}
+                  className="w-full px-2 py-1 bg-background border border-border rounded focus:ring-1 focus:ring-accent-purple focus:border-transparent outline-none transition-all text-white text-xs"
+                  calendarClassName="bg-background border border-border rounded-xl shadow-lg"
+                  placeholderText="日付"
+                />
+              </div>
+
+              <div className="col-span-2">
+                <label className="block text-xs font-medium mb-1">評価</label>
+                <select
+                  value={formData.rating}
+                  onChange={(e) => setFormData(prev => ({ ...prev, rating: e.target.value }))}
+                  className="w-full px-1 py-1 bg-background border border-border rounded focus:ring-1 focus:ring-accent-purple focus:border-transparent outline-none transition-all text-xs"
+                >
+                  <option value="">-</option>
+                  {Array.from({ length: 10 }, (_, i) => i + 1).map(num => (
+                    <option key={num} value={num}>{num}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="col-span-4">
+                <label className="block text-xs font-medium mb-1">進捗</label>
+                <div className="flex gap-1">
+                  {statusOptions.map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => setFormData(prev => ({ ...prev, status: option.value as ContentStatus }))}
+                      className={`px-1 py-1 border rounded transition-all text-xs font-medium flex-1 ${
+                        formData.status === option.value
+                          ? 'border-accent-purple bg-accent-purple bg-opacity-20'
+                          : 'border-border hover:border-accent-purple'
+                      }`}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="col-span-3">
+                <label className="block text-xs font-medium mb-1">一言</label>
+                <input
+                  type="text"
+                  value={formData.oneLiner}
+                  onChange={(e) => setFormData(prev => ({ ...prev, oneLiner: e.target.value }))}
+                  className="w-full px-2 py-1 bg-background border border-border rounded focus:ring-1 focus:ring-accent-purple focus:border-transparent outline-none transition-all text-xs"
+                  placeholder="一言まとめ"
+                  maxLength={50}
+                />
+              </div>
+            </div>
+
+            {/* Tags - Compact */}
+            <div>
+              <label className="block text-xs font-medium mb-1">タグ</label>
+              <TagInput
+                value={formData.tags}
+                onChange={(value) => setFormData(prev => ({ ...prev, tags: value }))}
+                className="w-full px-2 py-1 bg-background border border-border rounded focus:ring-1 focus:ring-accent-purple focus:border-transparent outline-none transition-all text-xs"
+                placeholder="カンマ区切り（例：経済学, ビジネス）"
+              />
+            </div>
           </div>
 
           {/* Actions - Compact */}
