@@ -10,7 +10,6 @@ import { X, Plus, Book, Video, FileText } from 'lucide-react'
 import { ContentKind, ContentStatus } from '@/types'
 import { useAppStore } from '@/store/useAppStore'
 import { TagInput } from './TagInput'
-import { ExpandableMemoEditor } from './ExpandableMemoEditor'
 
 interface NewItemDialogProps {
   isOpen: boolean

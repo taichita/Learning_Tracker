@@ -142,7 +142,7 @@ export function ExpandableMemoEditor({
 
       {/* Existing items */}
       <div className="space-y-2">
-        {items.map((item, index) => (
+        {items.map((item) => (
           <div key={item.id} className="group border border-border rounded-lg overflow-hidden">
             {editingId === item.id ? (
               <div className="p-3">

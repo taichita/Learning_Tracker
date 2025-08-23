@@ -48,7 +48,7 @@ const generateId = () => Math.random().toString(36).substr(2, 9)
 const STORAGE_KEY = 'learning-tracker-data'
 
 // Migrate old string memo format to new array format
-const migrateMemoFormat = (item: any) => {
+const migrateMemoFormat = (item: ContentItem & { businessMemo?: string | BusinessMemoItem[]; lifeMemo?: string | LifeMemoItem[] }) => {
   if (typeof item.businessMemo === 'string') {
     const text = item.businessMemo.trim()
     item.businessMemo = text ? [{
