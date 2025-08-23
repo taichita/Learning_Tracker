@@ -13,8 +13,11 @@ export function useAuth(): UseAuthReturn {
   const [user, setUser] = useState<User | null>(null)
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
+  const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
+    setMounted(true)
+    
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session)
@@ -56,6 +59,16 @@ export function useAuth(): UseAuthReturn {
     if (error) {
       console.error('Error signing out:', error)
       throw error
+    }
+  }
+
+  // Prevent hydration mismatch by not rendering until mounted
+  if (!mounted) {
+    return {
+      user: null,
+      session: null,
+      loading: true,
+      signOut
     }
   }
 
