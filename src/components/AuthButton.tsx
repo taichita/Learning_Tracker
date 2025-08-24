@@ -4,11 +4,18 @@ import { useAuth } from '../hooks/useAuth'
 import { Auth } from '@supabase/auth-ui-react'
 import { ThemeSupa } from '@supabase/auth-ui-shared'
 import { supabase } from '../../lib/supabase'
+import { useEffect, useState } from 'react'
 
 export function AuthButton() {
   const { user, loading, signOut } = useAuth()
+  const [mounted, setMounted] = useState(false)
 
-  if (loading) {
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  // Prevent hydration mismatch
+  if (!mounted || loading) {
     return (
       <div className="flex items-center justify-center p-4">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
@@ -82,7 +89,7 @@ export function AuthButton() {
           },
         }}
         providers={[]}
-        redirectTo={`${window.location.origin}`}
+        redirectTo={typeof window !== 'undefined' ? window.location.origin : ''}
       />
     </div>
   )
