@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { ChevronLeft, ChevronRight, Calendar } from 'lucide-react'
-import { AuthButton } from './AuthButton'
+// import { AuthButton } from './AuthButton' // Disabled for now
 
 interface MonthSidebarProps {
   selectedMonth: string
@@ -99,10 +99,10 @@ export function MonthSidebar({ selectedMonth, onMonthSelect, onMobileClose }: Mo
         </div>
       </div>
       
-      {/* Auth section at bottom */}
-      <div className="mt-auto border-t border-border">
+      {/* Auth section disabled */}
+      {/* <div className="mt-auto border-t border-border">
         <AuthButton />
-      </div>
+      </div> */}
     </div>
   )
 }
