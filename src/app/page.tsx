@@ -10,11 +10,13 @@ import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
 import { useAppStore } from '@/store/useAppStore'
 import { AuthButton } from '@/components/AuthButton'
 import { useSupabaseStore } from '@/hooks/useSupabaseStoreFixed'
+import { useState, useEffect } from 'react'
 
 export default function Home() {
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false)
   const [isNewItemDialogOpen, setIsNewItemDialogOpen] = useState(false)
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
+  const [mounted, setMounted] = useState(false)
   
   // Use fixed Supabase store with proper sync
   const {
@@ -31,6 +33,11 @@ export default function Home() {
     canUndo,
     canRedo
   } = useSupabaseStore()
+
+  // Prevent hydration mismatch
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   // Web Share API: URLパラメータを検出して新規作成ダイアログを開く
   useEffect(() => {
@@ -64,6 +71,15 @@ export default function Home() {
       }
     }
   })
+
+  // Prevent hydration errors by not rendering until mounted
+  if (!mounted) {
+    return (
+      <div className="flex h-screen bg-background items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    )
+  }
 
   return (
     <div className="flex h-screen bg-background">
